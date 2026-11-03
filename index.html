@@ -69,6 +69,8 @@ button,input,select{font:inherit;color:inherit}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .side .foot{display:flex;flex-direction:column;gap:8px}
 .side .note{font-size:12px;color:var(--muted)}
+.fmt-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;font-size:13px}
+.fmt-row select{width:100%;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 /* ---------- main ---------- */
 main{padding-block:28px 40px;padding-left:28px;padding-right:max(28px,env(safe-area-inset-right,0px));min-width:0}
 h1{font-weight:900;font-size:clamp(24px,3vw,32px);margin:0 0 18px;text-wrap:balance;letter-spacing:.01em}
@@ -111,6 +113,13 @@ h1{font-weight:900;font-size:clamp(24px,3vw,32px);margin:0 0 18px;text-wrap:bala
 input[type=range]{width:100%;accent-color:var(--accent)}
 input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 .hint{font-size:12px;color:var(--muted);margin:0}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px;display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
+.chip small{font:10.5px var(--f-mono);color:var(--muted)}
+.chip:hover{border-color:var(--c-rough)}
+.chip[aria-pressed="true"]{border-color:var(--c-rough);background:var(--c-rough);color:var(--bg)}
+.chip[aria-pressed="true"] small{color:inherit;opacity:.8}
+.chip:disabled{opacity:.45;cursor:not-allowed}
 .panel-foot{display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--line)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px);z-index:20}
 .toast.show{opacity:1}
@@ -140,8 +149,15 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
     <div class="list" id="list" aria-label="材質清單"></div>
     <div class="foot">
       <button class="btn ghost" id="applyAll" type="button">把目前參數套用到全部</button>
+      <div class="fmt-row">
+        <label for="outFmt">原圖格式</label>
+        <select id="outFmt">
+          <option value="png" selected>PNG（無損，檔案大）</option>
+          <option value="jpg">JPG（品質 92，檔案小）</option>
+        </select>
+      </div>
       <button class="btn primary" id="zipAll" type="button">下載全部貼圖 (.zip)</button>
-      <p class="note">每個檔案會輸出 _diffuse、_normal、_roughness 三張 PNG。</p>
+      <p class="note">每個檔案會輸出 _diffuse、_normal、_roughness 三張。法線與粗糙度固定用 PNG，避免 JPG 雜點變成假凹凸。</p>
     </div>
   </aside>
 
@@ -221,12 +237,17 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 
         <div data-panel="rough" hidden>
           <section style="--hc:var(--c-rough)">
+            <h3>磚面光澤預設</h3>
+            <div class="presets" id="rPresets" role="group" aria-label="磚面光澤預設"></div>
+            <p class="hint">選磚面種類一鍵套用，深色、淺色磚都適用，不用再勾反轉。套用後仍可用下面的滑桿微調。</p>
+          </section>
+          <section style="--hc:var(--c-rough)">
             <h3>粗糙度貼圖參數</h3>
-            <div class="row"><label for="p-rContrast">對比</label><input type="range" id="p-rContrast" data-k="rContrast" min="0" max="3" step="0.05"><output for="p-rContrast"></output></div>
-            <div class="row"><label for="p-rBright">亮度</label><input type="range" id="p-rBright" data-k="rBright" min="-100" max="100" step="1"><output for="p-rBright"></output></div>
+            <div class="row"><label for="p-rBase">整體粗糙度</label><input type="range" id="p-rBase" data-k="rBase" min="0" max="100" step="1"><output for="p-rBase"></output></div>
+            <div class="row"><label for="p-rContrast">紋理對比</label><input type="range" id="p-rContrast" data-k="rContrast" min="0" max="3" step="0.05"><output for="p-rContrast"></output></div>
             <div class="row"><label for="p-rDetail">細節強度</label><input type="range" id="p-rDetail" data-k="rDetail" min="0" max="2" step="0.05"><output for="p-rDetail"></output></div>
-            <div class="row chk"><label for="p-rInvert">反轉（亮部＝粗糙 ↔ 光滑）</label><input type="checkbox" id="p-rInvert" data-k="rInvert"></div>
-            <p class="hint">白色＝粗糙、黑色＝光滑。以「原圖修正」的結果當來源。深色但實際很亮面的材質（例如深色拋光磚）請勾選反轉；整體太霧就降低亮度。</p>
+            <div class="row chk"><label for="p-rInvert">反轉（改成深色部分比較粗糙）</label><input type="checkbox" id="p-rInvert" data-k="rInvert"></div>
+            <p class="hint">白色＝粗糙、黑色＝光滑。「整體粗糙度」決定磚面多亮：0 像鏡面，100 完全霧面。「紋理對比」決定表面深淺紋路帶出多少粗糙度變化，拋光磚要低、石材木紋可以高。</p>
           </section>
         </div>
 
@@ -244,13 +265,25 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const PREVIEW_MAX = 1600, EXPORT_MAX = 4096;
 const DEF = {shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, seam:0, upscale:1,
-             nStrength:2.5, nBlur:0, nFlipY:false, rContrast:1, rBright:0, rDetail:0.6, rInvert:false};
+             nStrength:2.5, nBlur:0, nFlipY:false, rBase:50, rContrast:1, rDetail:0.6, rInvert:false};
 const TAB_KEYS = {diffuse:['shadow','soften','wb','tintColor','tint','seam','upscale'],
-                  normal:['nStrength','nBlur','nFlipY'], rough:['rContrast','rBright','rDetail','rInvert']};
+                  normal:['nStrength','nBlur','nFlipY'], rough:['rBase','rContrast','rDetail','rInvert']};
+/* 磚面光澤預設：base＝整體粗糙度(0 鏡面～100 全霧)，contrast＝紋理帶出的粗糙度變化，
+   detail＝細紋保留程度，invert＝深色部分較粗糙(木紋的深色紋路通常是凹下較霧的地方) */
+const R_PRESETS = [
+  {id:'polish', name:'拋光磚', note:'亮面', v:{rBase:8,  rContrast:0.15, rDetail:0.3, rInvert:false}},
+  {id:'semi',   name:'半拋磚', note:'柔光', v:{rBase:30, rContrast:0.3,  rDetail:0.5, rInvert:false}},
+  {id:'matte',  name:'霧面磚', note:'啞光', v:{rBase:62, rContrast:0.35, rDetail:0.6, rInvert:false}},
+  {id:'slab',   name:'岩板',   note:'石紋', v:{rBase:38, rContrast:0.6,  rDetail:0.8, rInvert:false}},
+  {id:'wood',   name:'木紋磚', note:'紋路', v:{rBase:65, rContrast:0.8,  rDetail:1.0, rInvert:true}},
+];
 const TAB_META = {diffuse:{label:'修正後 · Diffuse', dot:'var(--c-diffuse)', suffix:'diffuse'},
                   normal:{label:'法線貼圖 · Normal', dot:'var(--c-normal)', suffix:'normal'},
                   rough:{label:'粗糙度貼圖 · Roughness', dot:'var(--c-rough)', suffix:'roughness'}};
 let files = [], active = -1, tab = 'diffuse', tiled = true, showOrig = false, uid = 0;
+let outFmt = 'png'; // 原圖(diffuse)的輸出格式：'png' 或 'jpg'；法線、粗糙度一律 PNG
+const JPG_QUALITY = 0.92;
+const extOf = w => (w==='diffuse' && outFmt==='jpg') ? 'jpg' : 'png'; // 依貼圖種類決定副檔名
 
 /* ---------- helpers ---------- */
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2600)}
@@ -258,7 +291,10 @@ const clamp01 = v => v<0?0:v>1?1:v;
 const nextFrame = () => new Promise(r=>setTimeout(r,16));
 function canvasOf(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
 function toCanvas(img){const c=canvasOf(img.width,img.height);c.getContext('2d').putImageData(img,0,0);return c}
-function toBlob(c){return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('PNG 編碼失敗')),'image/png'))}
+function toBlob(c,fmt='png'){ // fmt='jpg' 時以品質 92 壓縮
+  const type = fmt==='jpg' ? 'image/jpeg' : 'image/png';
+  return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error(fmt.toUpperCase()+' 編碼失敗')),type,JPG_QUALITY));
+}
 function baseName(n){return n.replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]/g,'_')}
 
 /* Separable box blur; wrap=true samples across edges so tiles stay seamless. */
@@ -376,9 +412,12 @@ function computeNormal(d,p,s){
 
 function computeRough(d,p){
   const {W,H,lum}=d, N=W*H, M=boxBlur(lum,W,H,Math.max(1,Math.max(W,H)*.01),true,2);
-  const det=p.rDetail/.6, br=p.rBright/200, img=new ImageData(W,H), o=img.data;
+  const det=p.rDetail/.6, base=p.rBase/100, sign=p.rInvert?-1:1, img=new ImageData(W,H), o=img.data;
+  let mean=0; for(let i=0;i<N;i++) mean+=lum[i]; mean/=N; // 整張圖的平均亮度
   for(let i=0,j=0;i<N;i++,j+=4){
-    let v=M[i]+(lum[i]-M[i])*det; v=(v-.5)*p.rContrast+.5+br; if(p.rInvert) v=1-v;
+    // 只取「跟平均比差多少」當紋理，所以深色、淺色磚都會落在同一個整體粗糙度附近
+    const dev=(M[i]-mean)+(lum[i]-M[i])*det;
+    let v=base+sign*dev*p.rContrast;
     v=clamp01(v)*255+.5; o[j]=o[j+1]=o[j+2]=v; o[j+3]=255;
   }
   return img;
@@ -428,7 +467,7 @@ function schedule(){
 
 /* ---------- full-resolution export ---------- */
 async function exportMaps(f,which){
-  const p=f.params, key=dKeyOf(p)+nKeyOf(p)+rKeyOf(p);
+  const p=f.params, key=dKeyOf(p)+nKeyOf(p)+rKeyOf(p)+outFmt; // 格式也算進快取，切換後會重新輸出
   if(!f.full||f.full.key!==key) f.full={key};
   const need=which.filter(w=>!f.full[w]); if(!need.length) return f.full;
   const sz=sizes(f,Infinity); $('#busy').textContent=`輸出 ${sz.ew}×${sz.eh}…`; $('#busy').hidden=false; await nextFrame();
@@ -436,7 +475,7 @@ async function exportMaps(f,which){
     const d=computeDiffuse(f,sz);
     for(const w of need){
       const img= w==='diffuse'?d.img : w==='normal'?computeNormal(d,p,1) : computeRough(d,p);
-      f.full[w]=await toBlob(toCanvas(img)); await nextFrame();
+      f.full[w]=await toBlob(toCanvas(img),extOf(w)); await nextFrame();
     }
   } finally {$('#busy').hidden=true;$('#busy').textContent='運算中…'}
   return f.full;
@@ -457,7 +496,7 @@ async function saveFile(name,blob){
 }
 $('#dlOne').addEventListener('click',async()=>{
   const f=files[active]; if(!f) return;
-  try{const r=await exportMaps(f,[tab]); await saveFile(`${baseName(f.name)}_${TAB_META[tab].suffix}.png`,r[tab])}
+  try{const r=await exportMaps(f,[tab]); await saveFile(`${baseName(f.name)}_${TAB_META[tab].suffix}.${extOf(tab)}`,r[tab])}
   catch(e){console.error(e);toast('輸出失敗：'+e.message)}
 });
 $('#zipAll').addEventListener('click',async()=>{
@@ -470,7 +509,7 @@ $('#zipAll').addEventListener('click',async()=>{
       const f=files[i]; btn.textContent=`處理中 ${i+1}/${files.length}…`;
       let b=baseName(f.name), n=2; while(used.has(b)) b=baseName(f.name)+'_'+n++; used.add(b);
       const r=await exportMaps(f,['diffuse','normal','rough']);
-      zip.file(b+'_diffuse.png',r.diffuse); zip.file(b+'_normal.png',r.normal); zip.file(b+'_roughness.png',r.rough);
+      zip.file(b+'_diffuse.'+extOf('diffuse'),r.diffuse); zip.file(b+'_normal.png',r.normal); zip.file(b+'_roughness.png',r.rough);
     }
     btn.textContent='壓縮中…';
     const blob=await zip.generateAsync({type:'blob'});
@@ -495,6 +534,7 @@ function loadUI(){
     const out=el.parentElement.querySelector('output'); if(out) out.textContent=fmt(k,v);
     el.disabled=!f;
   });
+  markPreset();
 }
 $$('[data-k]').forEach(el=>{
   el.addEventListener('input',()=>{
@@ -502,7 +542,7 @@ $$('[data-k]').forEach(el=>{
     const k=el.dataset.k;
     const v= el.type==='checkbox'?el.checked : el.type==='color'?el.value : parseFloat(el.value);
     f.params[k]=v; const out=el.parentElement.querySelector('output'); if(out) out.textContent=fmt(k,v);
-    schedule();
+    markPreset(); schedule();
   });
   if(el.type==='checkbox'||el.tagName==='SELECT') el.addEventListener('change',()=>el.dispatchEvent(new Event('input')));
 });
@@ -511,10 +551,18 @@ function setTab(t){
   $$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.t===t)));
   $$('[data-panel]').forEach(pn=>pn.hidden=pn.dataset.panel!==t);
   const m=TAB_META[t], k=$('#kicker'); k.style.setProperty('--dot',m.dot); k.querySelector('span').textContent=m.label;
-  $('#holdOrig').hidden=t!=='diffuse';
+  $('#holdOrig').hidden=t!=='diffuse'; updateDlLabel();
   schedule();
 }
 $$('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.t)));
+/* 原圖格式選單：記在瀏覽器裡，下次開網頁還是同一個選擇 */
+function updateDlLabel(){$('#dlOne').textContent='下載 '+extOf(tab).toUpperCase()}
+try{const v=localStorage.getItem('texlab.outFmt'); if(v==='jpg'||v==='png') outFmt=v}catch(e){}
+$('#outFmt').value=outFmt;
+$('#outFmt').addEventListener('change',e=>{
+  outFmt=e.target.value; try{localStorage.setItem('texlab.outFmt',outFmt)}catch(err){}
+  updateDlLabel(); toast(outFmt==='jpg'?'原圖改用 JPG 輸出':'原圖改用 PNG 輸出');
+});
 $('#vSingle').addEventListener('click',()=>{tiled=false;$('#vSingle').setAttribute('aria-pressed','true');$('#vTile').setAttribute('aria-pressed','false');draw()});
 $('#vTile').addEventListener('click',()=>{tiled=true;$('#vTile').setAttribute('aria-pressed','true');$('#vSingle').setAttribute('aria-pressed','false');draw()});
 const hold=$('#holdOrig');
@@ -531,6 +579,27 @@ $('#applyAll').addEventListener('click',()=>{
   files.forEach(o=>{if(o!==f) o.params={...f.params}}); toast(`已套用到全部 ${files.length} 個檔案`);
 });
 new ResizeObserver(()=>draw()).observe($('#viewBox'));
+
+/* ---------- 光澤預設按鈕 ---------- */
+const presetBox=$('#rPresets');
+R_PRESETS.forEach(pr=>{
+  const b=document.createElement('button'); b.type='button'; b.className='chip'; b.dataset.id=pr.id;
+  b.innerHTML=`${pr.name}<small>${pr.note} · ${pr.v.rBase}</small>`;
+  b.addEventListener('click',()=>{
+    const f=files[active]; if(!f) return;
+    Object.assign(f.params,pr.v); loadUI(); schedule(); toast('已套用「'+pr.name+'」');
+  });
+  presetBox.append(b);
+});
+/* 目前參數剛好等於哪個預設，就把那顆按鈕標亮；手動調過滑桿就會自動取消標示 */
+function markPreset(){
+  const f=files[active];
+  presetBox.querySelectorAll('.chip').forEach(b=>{
+    const pr=R_PRESETS.find(x=>x.id===b.dataset.id);
+    const on=!!f && Object.keys(pr.v).every(k=>f.params[k]===pr.v[k]);
+    b.setAttribute('aria-pressed',String(on)); b.disabled=!f;
+  });
+}
 
 /* ---------- file list ---------- */
 function renderList(){
