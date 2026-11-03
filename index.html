@@ -196,10 +196,17 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
       <div class="card params">
         <div data-panel="diffuse">
           <section style="--hc:var(--c-diffuse)">
-            <h3>陰影 / 亮度修正</h3>
+            <h3>亮度 / 對比 / 飽和度</h3>
+            <div class="row"><label for="p-bright">亮度</label><input type="range" id="p-bright" data-k="bright" min="-100" max="100" step="1"><output for="p-bright"></output></div>
+            <div class="row"><label for="p-contrast">對比</label><input type="range" id="p-contrast" data-k="contrast" min="-100" max="100" step="1"><output for="p-contrast"></output></div>
+            <div class="row"><label for="p-sat">飽和度</label><input type="range" id="p-sat" data-k="sat" min="-100" max="100" step="1"><output for="p-sat"></output></div>
+            <p class="hint">整張照片調亮調暗、加強明暗反差、讓顏色更鮮豔或更灰。只改照片外觀，不會影響法線的凹凸。</p>
+          </section>
+          <section style="--hc:var(--c-diffuse)">
+            <h3>光影不均修正</h3>
             <div class="row"><label for="p-shadow">修正強度</label><input type="range" id="p-shadow" data-k="shadow" min="0" max="100" step="1"><output for="p-shadow"></output></div>
             <div class="row"><label for="p-soften">柔化範圍</label><input type="range" id="p-soften" data-k="soften" min="5" max="100" step="1"><output for="p-soften"></output></div>
-            <p class="hint">拍照常會一邊亮一邊暗。「修正強度」把整體光影拉平；「柔化範圍」越大，只修大面積的明暗漸層，材質本身的紋理不受影響。</p>
+            <p class="hint">拍照常會一邊亮一邊暗。「修正強度」把整體光影拉平；「柔化範圍」越大，只修大面積的明暗漸層，材質本身的紋理不受影響。照片本來打光就均勻的話，拉高也不會有明顯變化。</p>
           </section>
           <section style="--hc:var(--c-diffuse)">
             <h3>色偏修正</h3>
@@ -264,9 +271,9 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const PREVIEW_MAX = 1600, EXPORT_MAX = 4096;
-const DEF = {shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, seam:0, upscale:1,
+const DEF = {bright:0, contrast:0, sat:0, shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, seam:0, upscale:1,
              nStrength:2.5, nBlur:0, nFlipY:false, rBase:50, rContrast:1, rDetail:0.6, rInvert:false};
-const TAB_KEYS = {diffuse:['shadow','soften','wb','tintColor','tint','seam','upscale'],
+const TAB_KEYS = {diffuse:['bright','contrast','sat','shadow','soften','wb','tintColor','tint','seam','upscale'],
                   normal:['nStrength','nBlur','nFlipY'], rough:['rBase','rContrast','rDetail','rInvert']};
 /* 磚面光澤預設：base＝整體粗糙度(0 鏡面～100 全霧)，contrast＝紋理帶出的粗糙度變化，
    detail＝細紋保留程度，invert＝深色部分較粗糙(木紋的深色紋路通常是凹下較霧的地方) */
@@ -386,11 +393,20 @@ function computeDiffuse(f,sz){
     const bR=boxBlur(R,W,H,1,true,1), bG=boxBlur(G,W,H,1,true,1), bB=boxBlur(B,W,H,1,true,1);
     for(let i=0;i<N;i++){R[i]+=(R[i]-bR[i])*.6;G[i]+=(G[i]-bG[i])*.6;B[i]+=(B[i]-bB[i])*.6}
   }
-  const img=new ImageData(W,H), d=img.data, lum=new Float32Array(N);
-  for(let i=0,j=0;i<N;i++,j+=4){
-    const r=clamp01(R[i]),gg=clamp01(G[i]),b=clamp01(B[i]);
-    d[j]=r*255+.5;d[j+1]=gg*255+.5;d[j+2]=b*255+.5;d[j+3]=255; lum[i]=.299*r+.587*gg+.114*b;
+  // 法線、粗糙度用的明暗在這裡先取好，下面的亮度/對比/飽和度只改照片外觀
+  const lum=new Float32Array(N);
+  for(let i=0;i<N;i++) lum[i]=.299*clamp01(R[i])+.587*clamp01(G[i])+.114*clamp01(B[i]);
+  if(p.bright||p.contrast||p.sat){
+    const gam=Math.pow(2,-p.bright/50), c=Math.pow(2,p.contrast/50), st=1+p.sat/100; // ±100 → 亮度 γ 0.25～4、對比 0.25～4 倍、飽和 0～2 倍
+    let m=0; for(let i=0;i<N;i++) m+=lum[i]; const piv=Math.pow(m/N,gam); // 對比以照片自己的平均亮度為中心，深色石材才不會整片變黑
+    for(let i=0;i<N;i++){
+      let r=Math.pow(clamp01(R[i]),gam), g=Math.pow(clamp01(G[i]),gam), b=Math.pow(clamp01(B[i]),gam);
+      r=(r-piv)*c+piv; g=(g-piv)*c+piv; b=(b-piv)*c+piv;
+      const L=.299*r+.587*g+.114*b; R[i]=L+(r-L)*st; G[i]=L+(g-L)*st; B[i]=L+(b-L)*st;
+    }
   }
+  const img=new ImageData(W,H), d=img.data;
+  for(let i=0,j=0;i<N;i++,j+=4){d[j]=clamp01(R[i])*255+.5;d[j+1]=clamp01(G[i])*255+.5;d[j+2]=clamp01(B[i])*255+.5;d[j+3]=255}
   return {img,lum,W,H};
 }
 
