@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+<title>材質貼圖工坊</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* Layout: file rail | tiled preview stage | parameter panel — a material lab bench, accent = the flat normal-map violet (128,128,255) */
+:root{
+  --bg:#e9ece7; --panel:#f6f7f3; --sunk:#dfe3dc; --ink:#1b201d; --muted:#5b645e; --line:#cfd5cc;
+  --accent:#5254c9; --accent-ink:#ffffff;
+  --c-diffuse:#5f7f4c; --c-normal:#6b6df0; --c-rough:#8a6d45;
+  --danger:#b4412f;
+  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131614; --panel:#1b1f1c; --sunk:#232824; --ink:#e4e8e2; --muted:#98a29a; --line:#2e3530;
+  --accent:#9c9eff; --accent-ink:#11122a;
+  --c-diffuse:#93b77d; --c-normal:#9c9eff; --c-rough:#c9a675; --danger:#ef8a76; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131614; --panel:#1b1f1c; --sunk:#232824; --ink:#e4e8e2; --muted:#98a29a; --line:#2e3530;
+  --accent:#9c9eff; --accent-ink:#11122a;
+  --c-diffuse:#93b77d; --c-normal:#9c9eff; --c-rough:#c9a675; --danger:#ef8a76; color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.55}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100%}
+/* ---------- side rail ---------- */
+.side{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:14px;
+  padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;position:sticky;top:0;height:100vh;box-sizing:border-box}
+.brand{font-weight:900;font-size:17px;letter-spacing:.02em}
+.brand small{display:block;font:500 11px var(--f-mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:18px 12px;text-align:center;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--sunk);color:var(--ink)}
+.drop strong{display:block;color:var(--ink);font-weight:700}
+.drop input{display:none}
+.list-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:-6px;font-size:12px;color:var(--muted)}
+.clear{border:1px solid transparent;background:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;color:var(--muted)}
+.clear:hover{color:var(--danger);border-color:var(--line)}
+.clear.armed{background:var(--danger);color:var(--bg);border-color:var(--danger)}
+.list{display:flex;flex-direction:column;gap:6px;overflow:auto;flex:1;min-height:60px}
+.item{display:grid;grid-template-columns:44px minmax(0,1fr) 28px;gap:10px;align-items:center;padding:6px;border:1px solid transparent;border-radius:8px;cursor:pointer;background:none;text-align:left;width:100%}
+.item:hover{background:var(--sunk)}
+.item[aria-current="true"]{border-color:var(--accent);background:var(--sunk)}
+.item img{width:44px;height:44px;object-fit:cover;border-radius:5px;display:block;background:var(--line)}
+.item .nm{font-size:13px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .dm{font:11px var(--f-mono);color:var(--muted)}
+.x{width:28px;height:28px;border-radius:6px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+.x:hover{color:var(--danger);background:var(--bg)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 16px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);border-radius:8px;padding:11px 14px;font-weight:700;width:100%}
+.btn.primary:hover{opacity:.9}
+.btn.ghost{width:100%;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.side .foot{display:flex;flex-direction:column;gap:8px}
+.side .note{font-size:12px;color:var(--muted)}
+/* ---------- main ---------- */
+main{padding-block:28px 40px;padding-left:28px;padding-right:max(28px,env(safe-area-inset-right,0px));min-width:0}
+h1{font-weight:900;font-size:clamp(24px,3vw,32px);margin:0 0 18px;text-wrap:balance;letter-spacing:.01em}
+.lede{color:var(--muted);max-width:62ch;margin:0 0 22px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.tab{border:0;background:none;padding:10px 16px;cursor:pointer;font-weight:700;color:var(--muted);border-bottom:2.5px solid transparent;margin-bottom:-1px;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.tab::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--dot)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--dot)}
+.tab[data-t="diffuse"]{--dot:var(--c-diffuse)} .tab[data-t="normal"]{--dot:var(--c-normal)} .tab[data-t="rough"]{--dot:var(--c-rough)}
+.bench{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.stage{padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.stage-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.kicker{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.kicker i{width:9px;height:9px;border-radius:50%;background:var(--dot,var(--c-diffuse))}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--bg)}
+.seg button{border:0;background:none;border-radius:999px;padding:4px 12px;cursor:pointer;font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.head-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hold{font-size:12px;padding:5px 12px;user-select:none;-webkit-user-select:none;touch-action:none}
+.hold.on{background:var(--ink);color:var(--bg)}
+.view{position:relative;display:flex;justify-content:center;align-items:center;min-height:240px;background:var(--sunk);border-radius:8px;overflow:hidden}
+.view canvas{display:block;max-width:100%}
+.busy{position:absolute;inset:auto 10px 10px auto;font:11px var(--f-mono);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:80px 16px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:center;width:100%}
+.empty strong{color:var(--ink);font-size:16px}
+.empty:hover strong{color:var(--accent)}
+.stage-foot{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.dims{font:12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.params{padding:18px 20px;display:flex;flex-direction:column;gap:0;min-width:0}
+.params section{padding-block:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.params section:first-child{border-top:0;padding-top:0}
+.params h3{margin:0;font-size:15px;font-weight:700;color:var(--hc,var(--ink))}
+.row{display:grid;grid-template-columns:96px minmax(0,1fr) 44px;gap:10px;align-items:center}
+.row label{font-size:13px}
+.row output{font:12px var(--f-mono);text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.row.chk{grid-template-columns:minmax(0,1fr) auto}
+.row select,.row input[type=color]{grid-column:2 / 4;width:100%;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.row input[type=color]{padding:2px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.panel-foot{display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px);z-index:20}
+.toast.show{opacity:1}
+@media (max-width:1180px){.bench{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .list{max-height:180px}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px}
+  .row{grid-template-columns:84px minmax(0,1fr) 40px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">材質貼圖工坊<small>Diffuse · Normal · Roughness</small></div>
+    <label class="drop" id="drop" for="fileIn">
+      <strong>拖曳材質照片到這裡</strong>
+      或點擊選擇檔案（可多選，也可直接貼上）
+      <input type="file" id="fileIn" accept="image/*" multiple>
+    </label>
+    <div class="list-head" id="listHead">
+      <span id="count"></span>
+      <button class="clear" id="clearAll" type="button">全部清除</button>
+    </div>
+    <div class="list" id="list" aria-label="材質清單"></div>
+    <div class="foot">
+      <button class="btn ghost" id="applyAll" type="button">把目前參數套用到全部</button>
+      <button class="btn primary" id="zipAll" type="button">下載全部貼圖 (.zip)</button>
+      <p class="note">每個檔案會輸出 _diffuse、_normal、_roughness 三張 PNG。</p>
+    </div>
+  </aside>
+
+  <main>
+    <h1>材質修正與法線貼圖產生器</h1>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-t="diffuse" aria-selected="true" id="tab-diffuse">原圖修正</button>
+      <button class="tab" role="tab" data-t="normal" aria-selected="false" id="tab-normal">法線貼圖</button>
+      <button class="tab" role="tab" data-t="rough" aria-selected="false" id="tab-rough">粗糙度貼圖</button>
+    </div>
+
+    <div class="bench">
+      <div class="card stage">
+        <div class="stage-head">
+          <div class="kicker" id="kicker"><i></i><span>修正後 · Diffuse</span></div>
+          <div class="head-tools">
+            <button class="btn hold" id="holdOrig" type="button">按住看原圖</button>
+            <div class="seg" role="group" aria-label="預覽方式">
+              <button type="button" id="vSingle" aria-pressed="false">單張</button>
+              <button type="button" id="vTile" aria-pressed="true">3×3 平鋪</button>
+            </div>
+          </div>
+        </div>
+        <div class="view" id="viewBox">
+          <canvas id="view"></canvas>
+          <label class="empty" id="empty" for="fileIn" hidden><strong>還沒有材質照片</strong>把照片拖曳到這頁任何地方，或點這裡選擇檔案</label>
+          <div class="busy" id="busy" hidden>運算中…</div>
+        </div>
+        <div class="stage-foot">
+          <span class="dims" id="dims">—</span>
+          <button class="btn" id="dlOne" type="button">下載 PNG</button>
+        </div>
+      </div>
+
+      <div class="card params">
+        <div data-panel="diffuse">
+          <section style="--hc:var(--c-diffuse)">
+            <h3>陰影 / 亮度修正</h3>
+            <div class="row"><label for="p-shadow">修正強度</label><input type="range" id="p-shadow" data-k="shadow" min="0" max="100" step="1"><output for="p-shadow"></output></div>
+            <div class="row"><label for="p-soften">柔化範圍</label><input type="range" id="p-soften" data-k="soften" min="5" max="100" step="1"><output for="p-soften"></output></div>
+            <p class="hint">拍照常會一邊亮一邊暗。「修正強度」把整體光影拉平；「柔化範圍」越大，只修大面積的明暗漸層，材質本身的紋理不受影響。</p>
+          </section>
+          <section style="--hc:var(--c-diffuse)">
+            <h3>色偏修正</h3>
+            <div class="row"><label for="p-wb">自動白平衡</label><input type="range" id="p-wb" data-k="wb" min="0" max="100" step="1"><output for="p-wb"></output></div>
+            <p class="hint">修掉燈光造成的偏黃、偏藍。木紋、紅磚這類本身有顏色的材質請保持低數值。</p>
+          </section>
+          <section style="--hc:var(--c-diffuse)">
+            <h3>套色</h3>
+            <div class="row"><label for="p-tintColor">目標顏色</label><input type="color" id="p-tintColor" data-k="tintColor"></div>
+            <div class="row"><label for="p-tint">套色強度</label><input type="range" id="p-tint" data-k="tint" min="0" max="100" step="1"><output for="p-tint"></output></div>
+            <p class="hint">把材質的色相往目標色調整，明暗紋理保持不變。強度 0 表示不套用。</p>
+          </section>
+          <section style="--hc:var(--c-diffuse)">
+            <h3>無縫接邊</h3>
+            <div class="row"><label for="p-seam">接邊寬度</label><input type="range" id="p-seam" data-k="seam" min="0" max="25" step="1"><output for="p-seam"></output></div>
+            <p class="hint">3×3 平鋪時看得到接縫就調高，邊緣會跟對側融合，鋪滿整面牆也不會出現格線。</p>
+          </section>
+          <section style="--hc:var(--c-diffuse)">
+            <h3>放大（提高像素）</h3>
+            <div class="row"><label for="p-upscale">放大倍數</label>
+              <select id="p-upscale" data-k="upscale"><option value="1">1×（原尺寸）</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></div>
+            <p class="hint">放大後會加一點銳利化。輸出最長邊上限 4096 px。</p>
+          </section>
+        </div>
+
+        <div data-panel="normal" hidden>
+          <section style="--hc:var(--c-normal)">
+            <h3>法線貼圖參數</h3>
+            <div class="row"><label for="p-nStrength">強度</label><input type="range" id="p-nStrength" data-k="nStrength" min="0" max="10" step="0.1"><output for="p-nStrength"></output></div>
+            <div class="row"><label for="p-nBlur">前處理模糊</label><input type="range" id="p-nBlur" data-k="nBlur" min="0" max="10" step="1"><output for="p-nBlur"></output></div>
+            <div class="row chk"><label for="p-nFlipY">翻轉 Y（DirectX 格式／凹凸相反時勾選）</label><input type="checkbox" id="p-nFlipY" data-k="nFlipY"></div>
+            <p class="hint">以「原圖修正」的結果當來源，亮的地方視為凸起。表面雜點太多就加一點前處理模糊。預設為 OpenGL 格式；在渲染軟體裡凹凸看起來相反時，勾選翻轉 Y。</p>
+          </section>
+        </div>
+
+        <div data-panel="rough" hidden>
+          <section style="--hc:var(--c-rough)">
+            <h3>粗糙度貼圖參數</h3>
+            <div class="row"><label for="p-rContrast">對比</label><input type="range" id="p-rContrast" data-k="rContrast" min="0" max="3" step="0.05"><output for="p-rContrast"></output></div>
+            <div class="row"><label for="p-rBright">亮度</label><input type="range" id="p-rBright" data-k="rBright" min="-100" max="100" step="1"><output for="p-rBright"></output></div>
+            <div class="row"><label for="p-rDetail">細節強度</label><input type="range" id="p-rDetail" data-k="rDetail" min="0" max="2" step="0.05"><output for="p-rDetail"></output></div>
+            <div class="row chk"><label for="p-rInvert">反轉（亮部＝粗糙 ↔ 光滑）</label><input type="checkbox" id="p-rInvert" data-k="rInvert"></div>
+            <p class="hint">白色＝粗糙、黑色＝光滑。以「原圖修正」的結果當來源。深色但實際很亮面的材質（例如深色拋光磚）請勾選反轉；整體太霧就降低亮度。</p>
+          </section>
+        </div>
+
+        <div class="panel-foot">
+          <button class="btn" id="resetTab" type="button">重設這一頁參數</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const PREVIEW_MAX = 1600, EXPORT_MAX = 4096;
+const DEF = {shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, seam:0, upscale:1,
+             nStrength:2.5, nBlur:0, nFlipY:false, rContrast:1, rBright:0, rDetail:0.6, rInvert:false};
+const TAB_KEYS = {diffuse:['shadow','soften','wb','tintColor','tint','seam','upscale'],
+                  normal:['nStrength','nBlur','nFlipY'], rough:['rContrast','rBright','rDetail','rInvert']};
+const TAB_META = {diffuse:{label:'修正後 · Diffuse', dot:'var(--c-diffuse)', suffix:'diffuse'},
+                  normal:{label:'法線貼圖 · Normal', dot:'var(--c-normal)', suffix:'normal'},
+                  rough:{label:'粗糙度貼圖 · Roughness', dot:'var(--c-rough)', suffix:'roughness'}};
+let files = [], active = -1, tab = 'diffuse', tiled = true, showOrig = false, uid = 0;
+
+/* ---------- helpers ---------- */
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2600)}
+const clamp01 = v => v<0?0:v>1?1:v;
+const nextFrame = () => new Promise(r=>setTimeout(r,16));
+function canvasOf(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
+function toCanvas(img){const c=canvasOf(img.width,img.height);c.getContext('2d').putImageData(img,0,0);return c}
+function toBlob(c){return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('PNG 編碼失敗')),'image/png'))}
+function baseName(n){return n.replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]/g,'_')}
+
+/* Separable box blur; wrap=true samples across edges so tiles stay seamless. */
+function blur1(src,dst,w,h,r,wrap,horiz){
+  const len=horiz?w:h, lines=horiz?h:w, stride=horiz?1:w, lstride=horiz?w:1, inv=1/(2*r+1);
+  for(let l=0;l<lines;l++){
+    const base=l*lstride;
+    const at = wrap ? k=>src[base+(((k%len)+len)%len)*stride] : k=>src[base+(k<0?0:k>=len?len-1:k)*stride];
+    let acc=0; for(let k=-r;k<=r;k++) acc+=at(k);
+    for(let i=0;i<len;i++){dst[base+i*stride]=acc*inv; acc+=at(i+r+1)-at(i-r)}
+  }
+}
+function boxBlur(a,w,h,r,wrap,passes=2){
+  r=Math.round(r); if(r<1) return a.slice();
+  let x=a.slice(); const t=new Float32Array(a.length);
+  for(let p=0;p<passes;p++){blur1(x,t,w,h,r,wrap,true);blur1(t,x,w,h,r,wrap,false)}
+  return x;
+}
+
+/* Low-frequency lighting estimate: average onto a coarse grid, blur it, sample back bilinearly. */
+function lowFreq(L,W,H,soften){
+  const k=96/Math.max(W,H), gw=Math.max(2,Math.round(W*k)), gh=Math.max(2,Math.round(H*k));
+  const sum=new Float32Array(gw*gh), cnt=new Float32Array(gw*gh);
+  for(let y=0;y<H;y++){const gy=Math.min(gh-1,(y*gh/H)|0);for(let x=0;x<W;x++){const g=gy*gw+Math.min(gw-1,(x*gw/W)|0);sum[g]+=L[y*W+x];cnt[g]++}}
+  for(let i=0;i<sum.length;i++) sum[i]/=cnt[i]||1;
+  const g=boxBlur(sum,gw,gh,Math.max(1,soften/100*Math.max(gw,gh)*0.3),false,3);
+  const out=new Float32Array(W*H);
+  for(let y=0;y<H;y++){
+    let fy=(y+.5)*gh/H-.5; fy=fy<0?0:fy>gh-1?gh-1:fy; const y0=fy|0,y1=Math.min(gh-1,y0+1),ty=fy-y0;
+    for(let x=0;x<W;x++){
+      let fx=(x+.5)*gw/W-.5; fx=fx<0?0:fx>gw-1?gw-1:fx; const x0=fx|0,x1=Math.min(gw-1,x0+1),tx=fx-x0;
+      const a=g[y0*gw+x0]+(g[y0*gw+x1]-g[y0*gw+x0])*tx, b=g[y1*gw+x0]+(g[y1*gw+x1]-g[y1*gw+x0])*tx;
+      out[y*W+x]=a+(b-a)*ty;
+    }
+  }
+  return out;
+}
+
+/* ---------- sizing ---------- */
+function sizes(f,maxSide){
+  let ew=f.w*f.params.upscale, eh=f.h*f.params.upscale, capped=false;
+  const m=Math.max(ew,eh); if(m>EXPORT_MAX){const k=EXPORT_MAX/m;ew*=k;eh*=k;capped=true}
+  ew=Math.max(1,Math.round(ew)); eh=Math.max(1,Math.round(eh));
+  const s=Math.min(1,maxSide/Math.max(ew,eh));
+  return {ew,eh,W:Math.max(1,Math.round(ew*s)),H:Math.max(1,Math.round(eh*s)),s,capped};
+}
+
+/* ---------- pipeline ---------- */
+function computeDiffuse(f,sz){
+  const p=f.params, {W,H,s}=sz, N=W*H;
+  const c=canvasOf(W,H), g=c.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high'; g.drawImage(f.src,0,0,W,H);
+  const px=g.getImageData(0,0,W,H).data;
+  let R=new Float32Array(N), G=new Float32Array(N), B=new Float32Array(N);
+  for(let i=0,j=0;i<N;i++,j+=4){R[i]=px[j]/255;G[i]=px[j+1]/255;B[i]=px[j+2]/255}
+
+  if(p.wb>0){ // gray-world white balance
+    let mr=0,mg=0,mb=0; for(let i=0;i<N;i++){mr+=R[i];mg+=G[i];mb+=B[i]} mr/=N;mg/=N;mb/=N;
+    const gray=(mr+mg+mb)/3, k=p.wb/100;
+    const fr=1+(gray/Math.max(mr,1e-3)-1)*k, fg=1+(gray/Math.max(mg,1e-3)-1)*k, fb=1+(gray/Math.max(mb,1e-3)-1)*k;
+    for(let i=0;i<N;i++){R[i]*=fr;G[i]*=fg;B[i]*=fb}
+  }
+  if(p.shadow>0){ // flatten uneven lighting
+    const L=new Float32Array(N); let mean=0;
+    for(let i=0;i<N;i++){L[i]=.299*R[i]+.587*G[i]+.114*B[i];mean+=L[i]} mean/=N;
+    const low=lowFreq(L,W,H,p.soften), k=p.shadow/100;
+    for(let i=0;i<N;i++){let gn=Math.pow(mean/Math.max(low[i],.02),k);gn=gn<.25?.25:gn>4?4:gn;R[i]*=gn;G[i]*=gn;B[i]*=gn}
+  }
+  if(p.tint>0){ // hue/saturation toward target, lightness kept
+    const t=parseInt(p.tintColor.slice(1),16), tr=(t>>16&255)/255, tg=(t>>8&255)/255, tb=(t&255)/255;
+    const Lt=Math.min(.98,Math.max(.02,.299*tr+.587*tg+.114*tb)), a=p.tint/100;
+    for(let i=0;i<N;i++){
+      const L=clamp01(.299*R[i]+.587*G[i]+.114*B[i]), k=Math.min(1,L/Lt,(1-L)/(1-Lt));
+      R[i]+=(L+(tr-Lt)*k-R[i])*a; G[i]+=(L+(tg-Lt)*k-G[i])*a; B[i]+=(L+(tb-Lt)*k-B[i])*a;
+    }
+  }
+  if(p.seam>0){ // cross-fade edges with a half-offset copy so the tile wraps
+    const bw=Math.max(1,Math.round(W*p.seam/100)), bh=Math.max(1,Math.round(H*p.seam/100));
+    const R0=R.slice(),G0=G.slice(),B0=B.slice(), hx=W>>1, hy=H>>1;
+    for(let y=0;y<H;y++){
+      const my=y<bh?1-y/bh:y>=H-bh?1-(H-1-y)/bh:0, sy=(y+hy)%H;
+      for(let x=0;x<W;x++){
+        const mx=x<bw?1-x/bw:x>=W-bw?1-(W-1-x)/bw:0; let m=Math.max(mx,my); if(!m) continue;
+        m=m*m*(3-2*m); const i=y*W+x, j=sy*W+(x+hx)%W;
+        R[i]=R0[i]+(R0[j]-R0[i])*m; G[i]=G0[i]+(G0[j]-G0[i])*m; B[i]=B0[i]+(B0[j]-B0[i])*m;
+      }
+    }
+  }
+  if(p.upscale>1 && s>=.75){ // light unsharp mask after enlarging
+    const bR=boxBlur(R,W,H,1,true,1), bG=boxBlur(G,W,H,1,true,1), bB=boxBlur(B,W,H,1,true,1);
+    for(let i=0;i<N;i++){R[i]+=(R[i]-bR[i])*.6;G[i]+=(G[i]-bG[i])*.6;B[i]+=(B[i]-bB[i])*.6}
+  }
+  const img=new ImageData(W,H), d=img.data, lum=new Float32Array(N);
+  for(let i=0,j=0;i<N;i++,j+=4){
+    const r=clamp01(R[i]),gg=clamp01(G[i]),b=clamp01(B[i]);
+    d[j]=r*255+.5;d[j+1]=gg*255+.5;d[j+2]=b*255+.5;d[j+3]=255; lum[i]=.299*r+.587*gg+.114*b;
+  }
+  return {img,lum,W,H};
+}
+
+function computeNormal(d,p,s){
+  const {W,H,lum}=d; const h=boxBlur(lum,W,H,p.nBlur*s,true,2);
+  const k=p.nStrength*s*1.5, fy=p.nFlipY?-1:1, img=new ImageData(W,H), o=img.data;
+  for(let y=0;y<H;y++){
+    const ym=((y-1+H)%H)*W, y0=y*W, yp=((y+1)%H)*W;
+    for(let x=0;x<W;x++){
+      const xm=(x-1+W)%W, xp=(x+1)%W;
+      const tl=h[ym+xm],t=h[ym+x],tr=h[ym+xp],l=h[y0+xm],r=h[y0+xp],bl=h[yp+xm],b=h[yp+x],br=h[yp+xp];
+      const dx=(tr+2*r+br)-(tl+2*l+bl), dy=(bl+2*b+br)-(tl+2*t+tr);
+      let nx=-dx*k, ny=dy*k*fy; const len=Math.hypot(nx,ny,1), j=(y0+x)*4;
+      o[j]=(nx/len*.5+.5)*255+.5; o[j+1]=(ny/len*.5+.5)*255+.5; o[j+2]=(1/len*.5+.5)*255+.5; o[j+3]=255;
+    }
+  }
+  return img;
+}
+
+function computeRough(d,p){
+  const {W,H,lum}=d, N=W*H, M=boxBlur(lum,W,H,Math.max(1,Math.max(W,H)*.01),true,2);
+  const det=p.rDetail/.6, br=p.rBright/200, img=new ImageData(W,H), o=img.data;
+  for(let i=0,j=0;i<N;i++,j+=4){
+    let v=M[i]+(lum[i]-M[i])*det; v=(v-.5)*p.rContrast+.5+br; if(p.rInvert) v=1-v;
+    v=clamp01(v)*255+.5; o[j]=o[j+1]=o[j+2]=v; o[j+3]=255;
+  }
+  return img;
+}
+
+const dKeyOf = p => JSON.stringify(TAB_KEYS.diffuse.map(k=>p[k]));
+const nKeyOf = p => JSON.stringify(TAB_KEYS.normal.map(k=>p[k]));
+const rKeyOf = p => JSON.stringify(TAB_KEYS.rough.map(k=>p[k]));
+
+/* ---------- preview ---------- */
+function preview(){
+  const f=files[active]; if(!f) return null;
+  const p=f.params, dk=dKeyOf(p);
+  let pv=f.pv;
+  if(!pv||pv.dk!==dk){const sz=sizes(f,PREVIEW_MAX), d=computeDiffuse(f,sz); pv=f.pv={dk,sz,d,dC:toCanvas(d.img)}}
+  if(tab==='normal'&&pv.nk!==nKeyOf(p)){pv.nk=nKeyOf(p);pv.nC=toCanvas(computeNormal(pv.d,p,pv.sz.s))}
+  if(tab==='rough'&&pv.rk!==rKeyOf(p)){pv.rk=rKeyOf(p);pv.rC=toCanvas(computeRough(pv.d,p))}
+  return pv;
+}
+function draw(){
+  const f=files[active], cv=$('#view');
+  $('#empty').hidden=!!f; cv.hidden=!f; $('#dlOne').disabled=!f; $('#zipAll').disabled=!files.length; $('#applyAll').disabled=files.length<2;
+  if(!f){$('#dims').textContent='—';return}
+  const pv=f.pv; if(!pv) return;
+  const src = showOrig&&tab==='diffuse' ? f.src : tab==='normal'?pv.nC : tab==='rough'?pv.rC : pv.dC;
+  if(!src) return;
+  const box=$('#viewBox'), reps=tiled?3:1, dpr=Math.min(2,window.devicePixelRatio||1);
+  const aspect=pv.sz.H/pv.sz.W;
+  let dw=box.clientWidth, dh=dw*aspect; const maxH=Math.max(260,window.innerHeight*.66); if(dh>maxH){dh=maxH;dw=dh/aspect}
+  cv.style.width=dw+'px'; cv.style.height=dh+'px'; cv.width=Math.round(dw*dpr); cv.height=Math.round(dh*dpr);
+  const g=cv.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high';
+  for(let j=0;j<reps;j++)for(let i=0;i<reps;i++){
+    const x0=Math.round(i*cv.width/reps),x1=Math.round((i+1)*cv.width/reps),y0=Math.round(j*cv.height/reps),y1=Math.round((j+1)*cv.height/reps);
+    g.drawImage(src,x0,y0,x1-x0,y1-y0);
+  }
+  const sz=pv.sz; let t=`輸出 ${sz.ew} × ${sz.eh} px`;
+  if(f.params.upscale>1) t+=`（原圖 ${f.w} × ${f.h}）`;
+  if(sz.capped) t+=' · 已限制在 4096 px';
+  if(showOrig&&tab==='diffuse') t='原圖 · '+t;
+  $('#dims').textContent=t;
+}
+let pending=0;
+function schedule(){
+  $('#busy').hidden=false; cancelAnimationFrame(pending);
+  pending=requestAnimationFrame(()=>setTimeout(()=>{try{preview();draw()}catch(e){console.error(e);toast('預覽失敗：'+e.message)}$('#busy').hidden=true},0));
+}
+
+/* ---------- full-resolution export ---------- */
+async function exportMaps(f,which){
+  const p=f.params, key=dKeyOf(p)+nKeyOf(p)+rKeyOf(p);
+  if(!f.full||f.full.key!==key) f.full={key};
+  const need=which.filter(w=>!f.full[w]); if(!need.length) return f.full;
+  const sz=sizes(f,Infinity); $('#busy').textContent=`輸出 ${sz.ew}×${sz.eh}…`; $('#busy').hidden=false; await nextFrame();
+  try{
+    const d=computeDiffuse(f,sz);
+    for(const w of need){
+      const img= w==='diffuse'?d.img : w==='normal'?computeNormal(d,p,1) : computeRough(d,p);
+      f.full[w]=await toBlob(toCanvas(img)); await nextFrame();
+    }
+  } finally {$('#busy').hidden=true;$('#busy').textContent='運算中…'}
+  return f.full;
+}
+
+/* ---------- saving: Claude artifact downloads, or a plain link when opened as a local file ---------- */
+const dlReady = (window.claude&&typeof window.claude.use==='function') ? window.claude.use('downloads').catch(()=>null) : Promise.resolve(undefined);
+async function saveFile(name,blob){
+  const ns=await dlReady;
+  if(ns){
+    try{await ns.save({filename:name,data:blob});toast('已下載 '+name)}
+    catch(e){const c=e&&e.code; toast(c==='declined'?'已取消下載':c==='rate_limited'?'下載視窗已開啟，請稍候再試':'無法下載：'+(e&&e.message||c))}
+    return;
+  }
+  if(ns===null){toast('這個檢視無法下載檔案，請在 claude.ai 開啟此頁');return}
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);
+}
+$('#dlOne').addEventListener('click',async()=>{
+  const f=files[active]; if(!f) return;
+  try{const r=await exportMaps(f,[tab]); await saveFile(`${baseName(f.name)}_${TAB_META[tab].suffix}.png`,r[tab])}
+  catch(e){console.error(e);toast('輸出失敗：'+e.message)}
+});
+$('#zipAll').addEventListener('click',async()=>{
+  if(!files.length) return;
+  if(typeof JSZip==='undefined'){toast('壓縮元件沒有載入（需要網路），請改用各頁的「下載 PNG」');return}
+  const btn=$('#zipAll'); btn.disabled=true;
+  try{
+    const zip=new JSZip(), used=new Set();
+    for(let i=0;i<files.length;i++){
+      const f=files[i]; btn.textContent=`處理中 ${i+1}/${files.length}…`;
+      let b=baseName(f.name), n=2; while(used.has(b)) b=baseName(f.name)+'_'+n++; used.add(b);
+      const r=await exportMaps(f,['diffuse','normal','rough']);
+      zip.file(b+'_diffuse.png',r.diffuse); zip.file(b+'_normal.png',r.normal); zip.file(b+'_roughness.png',r.rough);
+    }
+    btn.textContent='壓縮中…';
+    const blob=await zip.generateAsync({type:'blob'});
+    await saveFile(files.length===1?baseName(files[0].name)+'_maps.zip':'texture_maps.zip',blob);
+  }catch(e){console.error(e);toast('輸出失敗：'+e.message)}
+  finally{btn.disabled=false;btn.textContent='下載全部貼圖 (.zip)'}
+});
+
+/* ---------- UI binding ---------- */
+function fmt(k,v){
+  if(typeof v==='boolean') return '';
+  if(k==='nStrength') return (+v).toFixed(1);
+  if(k==='rContrast'||k==='rDetail') return (+v).toFixed(2);
+  if(k==='seam') return v+'%';
+  return String(v);
+}
+function loadUI(){
+  const f=files[active], p=f?f.params:DEF;
+  $$('[data-k]').forEach(el=>{
+    const k=el.dataset.k, v=p[k];
+    if(el.type==='checkbox') el.checked=!!v; else el.value=String(v);
+    const out=el.parentElement.querySelector('output'); if(out) out.textContent=fmt(k,v);
+    el.disabled=!f;
+  });
+}
+$$('[data-k]').forEach(el=>{
+  el.addEventListener('input',()=>{
+    const f=files[active]; if(!f) return;
+    const k=el.dataset.k;
+    const v= el.type==='checkbox'?el.checked : el.type==='color'?el.value : parseFloat(el.value);
+    f.params[k]=v; const out=el.parentElement.querySelector('output'); if(out) out.textContent=fmt(k,v);
+    schedule();
+  });
+  if(el.type==='checkbox'||el.tagName==='SELECT') el.addEventListener('change',()=>el.dispatchEvent(new Event('input')));
+});
+function setTab(t){
+  tab=t; showOrig=false;
+  $$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.t===t)));
+  $$('[data-panel]').forEach(pn=>pn.hidden=pn.dataset.panel!==t);
+  const m=TAB_META[t], k=$('#kicker'); k.style.setProperty('--dot',m.dot); k.querySelector('span').textContent=m.label;
+  $('#holdOrig').hidden=t!=='diffuse';
+  schedule();
+}
+$$('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.t)));
+$('#vSingle').addEventListener('click',()=>{tiled=false;$('#vSingle').setAttribute('aria-pressed','true');$('#vTile').setAttribute('aria-pressed','false');draw()});
+$('#vTile').addEventListener('click',()=>{tiled=true;$('#vTile').setAttribute('aria-pressed','true');$('#vSingle').setAttribute('aria-pressed','false');draw()});
+const hold=$('#holdOrig');
+const holdOn=e=>{e.preventDefault();showOrig=true;hold.classList.add('on');draw()};
+const holdOff=()=>{if(!showOrig)return;showOrig=false;hold.classList.remove('on');draw()};
+hold.addEventListener('pointerdown',holdOn); ['pointerup','pointerleave','pointercancel'].forEach(ev=>hold.addEventListener(ev,holdOff));
+hold.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter')holdOn(e)}); hold.addEventListener('keyup',holdOff);
+$('#resetTab').addEventListener('click',()=>{
+  const f=files[active]; if(!f) return;
+  TAB_KEYS[tab].forEach(k=>f.params[k]=DEF[k]); loadUI(); schedule(); toast('已重設');
+});
+$('#applyAll').addEventListener('click',()=>{
+  const f=files[active]; if(!f) return;
+  files.forEach(o=>{if(o!==f) o.params={...f.params}}); toast(`已套用到全部 ${files.length} 個檔案`);
+});
+new ResizeObserver(()=>draw()).observe($('#viewBox'));
+
+/* ---------- file list ---------- */
+function renderList(){
+  const list=$('#list'); list.textContent='';
+  $('#listHead').hidden=!files.length; $('#count').textContent=`已加入 ${files.length} 張`; disarmClear();
+  files.forEach((f,i)=>{
+    const row=document.createElement('div'); row.className='item'; row.setAttribute('role','button'); row.tabIndex=0;
+    row.setAttribute('aria-current',String(i===active));
+    const im=document.createElement('img'); im.src=f.thumb; im.alt='';
+    const info=document.createElement('div'); info.style.minWidth='0';
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=f.name; nm.title=f.name;
+    const dm=document.createElement('div'); dm.className='dm'; dm.textContent=`${f.w} × ${f.h}`;
+    info.append(nm,dm);
+    const x=document.createElement('button'); x.type='button'; x.className='x'; x.textContent='×'; x.setAttribute('aria-label','移除 '+f.name);
+    x.addEventListener('click',e=>{e.stopPropagation();removeFile(i)});
+    row.append(im,info,x);
+    const pick=()=>{active=i;renderList();loadUI();schedule()};
+    row.addEventListener('click',pick); row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick()}});
+    list.append(row);
+  });
+}
+function removeFile(i){
+  files.splice(i,1);
+  if(active>=files.length) active=files.length-1; else if(i<active) active--;
+  renderList(); loadUI(); schedule();
+}
+/* Two-step clear: first click arms the button, a second click within 4 s removes every file. */
+const clearBtn=$('#clearAll');
+function disarmClear(){clearTimeout(disarmClear.t);clearBtn.classList.remove('armed');clearBtn.textContent='全部清除'}
+clearBtn.addEventListener('click',()=>{
+  if(!clearBtn.classList.contains('armed')){
+    clearBtn.classList.add('armed'); clearBtn.textContent=`確定清除 ${files.length} 張？再按一次`;
+    disarmClear.t=setTimeout(disarmClear,4000); return;
+  }
+  const n=files.length; files=[]; active=-1; renderList(); loadUI(); schedule(); toast(`已清除 ${n} 張`);
+});
+function addCanvas(name,c){
+  const k=Math.min(1,96/Math.max(c.width,c.height)), t=canvasOf(Math.max(1,Math.round(c.width*k)),Math.max(1,Math.round(c.height*k)));
+  t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+  files.push({id:++uid,name,src:c,w:c.width,h:c.height,params:{...DEF},thumb:t.toDataURL('image/jpeg',.8)});
+}
+function loadImage(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), im=new Image();
+    im.onload=()=>{const c=canvasOf(im.naturalWidth,im.naturalHeight);c.getContext('2d').drawImage(im,0,0);URL.revokeObjectURL(url);res(c)};
+    im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('無法讀取 '+file.name))};
+    im.src=url;
+  });
+}
+async function addFiles(list){
+  const imgs=[...list].filter(f=>f.type.startsWith('image/')); if(!imgs.length){toast('請選擇圖片檔（JPG、PNG、WebP）');return}
+  const first=files.length;
+  for(const f of imgs){try{addCanvas(f.name||'pasted.png',await loadImage(f))}catch(e){toast(e.message)}}
+  if(files.length>first) active=first;
+  renderList(); loadUI(); schedule();
+}
+$('#fileIn').addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''});
+['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('#drop').classList.add('over')}));
+['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();if(ev==='drop'||!e.relatedTarget)$('#drop').classList.remove('over')}));
+document.addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files.length) addFiles(e.dataTransfer.files)});
+document.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.items||[])].filter(i=>i.kind==='file').map(i=>i.getAsFile()).filter(Boolean);if(fs.length)addFiles(fs)});
+
+renderList(); loadUI(); setTab('diffuse');
+</script>
+
+</body>
+</html>
