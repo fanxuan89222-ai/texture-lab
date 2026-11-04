@@ -177,8 +177,8 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
           <div class="head-tools">
             <button class="btn hold" id="holdOrig" type="button">按住看原圖</button>
             <div class="seg" role="group" aria-label="預覽方式">
-              <button type="button" id="vSingle" aria-pressed="false">單張</button>
-              <button type="button" id="vTile" aria-pressed="true">3×3 平鋪</button>
+              <button type="button" id="vSingle" aria-pressed="true">單張</button>
+              <button type="button" id="vTile" aria-pressed="false">3×3 平鋪</button>
             </div>
           </div>
         </div>
@@ -287,7 +287,7 @@ const R_PRESETS = [
 const TAB_META = {diffuse:{label:'修正後 · Diffuse', dot:'var(--c-diffuse)', suffix:'diffuse'},
                   normal:{label:'法線貼圖 · Normal', dot:'var(--c-normal)', suffix:'normal'},
                   rough:{label:'粗糙度貼圖 · Roughness', dot:'var(--c-rough)', suffix:'roughness'}};
-let files = [], active = -1, tab = 'diffuse', tiled = true, showOrig = false, uid = 0;
+let files = [], active = -1, tab = 'diffuse', tiled = false, showOrig = false, uid = 0;
 let outFmt = 'png'; // 原圖(diffuse)的輸出格式：'png' 或 'jpg'；法線、粗糙度一律 PNG
 const JPG_QUALITY = 0.92;
 const extOf = w => (w==='diffuse' && outFmt==='jpg') ? 'jpg' : 'png'; // 依貼圖種類決定副檔名
