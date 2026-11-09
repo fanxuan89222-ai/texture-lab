@@ -203,6 +203,11 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
             <p class="hint">整張照片調亮調暗、加強明暗反差、讓顏色更鮮豔或更灰。只改照片外觀，不會影響法線的凹凸。</p>
           </section>
           <section style="--hc:var(--c-diffuse)">
+            <h3>明暗均勻（修暗角）</h3>
+            <div class="row"><label for="p-even">均勻強度</label><input type="range" id="p-even" data-k="even" min="0" max="100" step="1"><output for="p-even"></output></div>
+            <p class="hint">修掉廠商照片四個角偏暗、中間偏亮，顏色也會跟著變均勻。只抓整張照片的明暗分布，不會動到石紋和磚縫，通常直接拉到 100。</p>
+          </section>
+          <section style="--hc:var(--c-diffuse)">
             <h3>光影不均修正</h3>
             <div class="row"><label for="p-shadow">修正強度</label><input type="range" id="p-shadow" data-k="shadow" min="0" max="100" step="1"><output for="p-shadow"></output></div>
             <div class="row"><label for="p-soften">柔化範圍</label><input type="range" id="p-soften" data-k="soften" min="5" max="100" step="1"><output for="p-soften"></output></div>
@@ -271,9 +276,9 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const PREVIEW_MAX = 1600, EXPORT_MAX = 4096;
-const DEF = {bright:0, contrast:0, sat:0, shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, seam:0, upscale:1,
+const DEF = {bright:0, contrast:0, sat:0, even:0, shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, seam:0, upscale:1,
              nStrength:2.5, nBlur:0, nFlipY:false, rBase:50, rContrast:1, rDetail:0.6, rInvert:false};
-const TAB_KEYS = {diffuse:['bright','contrast','sat','shadow','soften','wb','tintColor','tint','seam','upscale'],
+const TAB_KEYS = {diffuse:['bright','contrast','sat','even','shadow','soften','wb','tintColor','tint','seam','upscale'],
                   normal:['nStrength','nBlur','nFlipY'], rough:['rBase','rContrast','rDetail','rInvert']};
 /* 磚面光澤預設：base＝整體粗糙度(0 鏡面～100 全霧)，contrast＝紋理帶出的粗糙度變化，
    detail＝細紋保留程度，invert＝深色部分較粗糙(木紋的深色紋路通常是凹下較霧的地方) */
@@ -340,6 +345,59 @@ function lowFreq(L,W,H,soften){
   return out;
 }
 
+/* 明暗均勻：對每個色版的 log 值擬合一個平滑曲面(四次多項式＋徑向項)當成打光分布，再除掉它。
+   曲面夠平滑，抓得到暗角和漸層，但跟不上石紋、磚縫；離曲面太遠的格子會被剔除，避免被圖案帶偏。 */
+function fitLight(v,on,A){
+  const n=A[0].length, w=on.slice(); let c=new Float64Array(n);
+  for(let it=0;it<5;it++){
+    const M=Array.from({length:n},()=>new Float64Array(n+1));
+    for(let i=0;i<v.length;i++){ if(!w[i]) continue; const a=A[i];
+      for(let r=0;r<n;r++){ for(let s=0;s<n;s++) M[r][s]+=a[r]*a[s]; M[r][n]+=a[r]*v[i]; } }
+    for(let r=0;r<n;r++) M[r][r]+=1e-6;
+    for(let r=0;r<n;r++){ // Gaussian elimination with partial pivoting
+      let p=r; for(let q=r+1;q<n;q++) if(Math.abs(M[q][r])>Math.abs(M[p][r])) p=q;
+      [M[r],M[p]]=[M[p],M[r]]; if(!M[r][r]) continue;
+      for(let q=0;q<n;q++){ if(q===r) continue; const f=M[q][r]/M[r][r]; if(f) for(let s=r;s<=n;s++) M[q][s]-=f*M[r][s]; }
+    }
+    c=c.map((_,r)=>M[r][r]?M[r][n]/M[r][r]:0);
+    const res=new Float64Array(v.length), abs=[];
+    for(let i=0;i<v.length;i++){ if(!on[i]) continue; let s=0; for(let r=0;r<n;r++) s+=c[r]*A[i][r]; res[i]=v[i]-s; abs.push(Math.abs(res[i])); }
+    abs.sort((a,b)=>a-b);
+    const lim=Math.max(.02,2.5*1.4826*abs[abs.length>>1]);
+    for(let i=0;i<v.length;i++) w[i]=on[i]&&Math.abs(res[i])<lim?1:0;
+  }
+  return c;
+}
+function evenLight(ch,W,H,k){
+  if(Math.min(W,H)<16) return; // 太小的圖沒有足夠的格子可以擬合
+  const m=64/Math.max(W,H), gw=Math.max(8,Math.round(W*m)), gh=Math.max(8,Math.round(H*m)), GN=gw*gh;
+  const ax=W/Math.max(W,H), ay=H/Math.max(W,H), r0=ax*ax+ay*ay;
+  const basis=(u,v)=>{ // u,v 為 0～1 的畫面位置
+    const x=(2*u-1)*ax, y=(2*v-1)*ay, t=[];
+    for(let a=0;a<=4;a++)for(let b=0;b<=4-a;b++)t.push(Math.pow(x,a)*Math.pow(y,b));
+    const r=(x*x+y*y)/r0; t.push(r*r*r,r*r*r*r); return t;
+  };
+  const A=[]; for(let y=0;y<gh;y++)for(let x=0;x<gw;x++)A.push(basis((x+.5)/gw,(y+.5)/gh));
+  const nodes=[]; for(let y=0;y<=gh;y++)for(let x=0;x<=gw;x++)nodes.push(basis(x/gw,y/gh));
+  for(const C of ch){
+    const sum=new Float64Array(GN), cnt=new Uint32Array(GN);
+    for(let y=0;y<H;y++){const gy=Math.min(gh-1,(y*gh/H)|0);for(let x=0;x<W;x++){const g=gy*gw+Math.min(gw-1,(x*gw/W)|0);sum[g]+=C[y*W+x];cnt[g]++}}
+    const v=new Float64Array(GN), on=new Uint8Array(GN);
+    for(let i=0;i<GN;i++) if(cnt[i]){v[i]=Math.log(Math.max(sum[i]/cnt[i],.01));on[i]=1}
+    const c=fitLight(v,on,A);
+    const S=nodes.map(a=>a.reduce((s,t,r)=>s+t*c[r],0));
+    let mean=0,n=0; for(let i=0;i<GN;i++){ if(!on[i]) continue; let s=0; for(let r=0;r<c.length;r++) s+=c[r]*A[i][r]; mean+=s; n++; } mean/=n||1;
+    for(let y=0;y<H;y++){
+      const fy=(y+.5)*gh/H, y0=Math.min(gh-1,fy|0), ty=fy-y0;
+      for(let x=0;x<W;x++){
+        const fx=(x+.5)*gw/W, x0=Math.min(gw-1,fx|0), tx=fx-x0, i=y0*(gw+1)+x0, j=i+gw+1;
+        const a=S[i]+(S[i+1]-S[i])*tx, b=S[j]+(S[j+1]-S[j])*tx;
+        let gn=Math.exp((mean-(a+(b-a)*ty))*k); gn=gn<.25?.25:gn>4?4:gn; C[y*W+x]*=gn;
+      }
+    }
+  }
+}
+
 /* ---------- sizing ---------- */
 function sizes(f,maxSide){
   let ew=f.w*f.params.upscale, eh=f.h*f.params.upscale, capped=false;
@@ -357,6 +415,7 @@ function computeDiffuse(f,sz){
   let R=new Float32Array(N), G=new Float32Array(N), B=new Float32Array(N);
   for(let i=0,j=0;i<N;i++,j+=4){R[i]=px[j]/255;G[i]=px[j+1]/255;B[i]=px[j+2]/255}
 
+  if(p.even>0) evenLight([R,G,B],W,H,p.even/100);
   if(p.wb>0){ // gray-world white balance
     let mr=0,mg=0,mb=0; for(let i=0;i<N;i++){mr+=R[i];mg+=G[i];mb+=B[i]} mr/=N;mg/=N;mb/=N;
     const gray=(mr+mg+mb)/3, k=p.wb/100;
