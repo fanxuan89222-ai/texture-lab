@@ -43,7 +43,7 @@ button,input,select{font:inherit;color:inherit}
 .side{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:14px;
   padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;position:sticky;top:0;height:100vh;box-sizing:border-box}
 .brand{font-weight:900;font-size:17px;letter-spacing:.02em}
-.brand small{display:block;font:500 11px var(--f-mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.brand small{display:block;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.02em;margin-top:2px}
 .drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:18px 12px;text-align:center;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s}
 .drop:hover,.drop.over{border-color:var(--accent);background:var(--sunk);color:var(--ink)}
 .drop strong{display:block;color:var(--ink);font-weight:700}
@@ -59,7 +59,7 @@ button,input,select{font:inherit;color:inherit}
 .item img{width:44px;height:44px;object-fit:cover;border-radius:5px;display:block;background:var(--line)}
 .item .nm{font-size:13px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item .dm{font:11px var(--f-mono);color:var(--muted)}
-.x{width:28px;height:28px;border-radius:6px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+.x{width:28px;height:28px;border-radius:6px;border:0;background:none;color:var(--muted);cursor:pointer;display:grid;place-items:center;padding:0}
 .x:hover{color:var(--danger);background:var(--bg)}
 .btn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 16px;cursor:pointer;font-weight:500}
 .btn:hover{border-color:var(--ink)}
@@ -75,7 +75,8 @@ button,input,select{font:inherit;color:inherit}
 main{padding-block:28px 40px;padding-left:28px;padding-right:max(28px,env(safe-area-inset-right,0px));min-width:0}
 h1{font-weight:900;font-size:clamp(24px,3vw,32px);margin:0 0 18px;text-wrap:balance;letter-spacing:.01em}
 .lede{color:var(--muted);max-width:62ch;margin:0 0 22px}
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
 .tab{border:0;background:none;padding:10px 16px;cursor:pointer;font-weight:700;color:var(--muted);border-bottom:2.5px solid transparent;margin-bottom:-1px;white-space:nowrap;display:flex;align-items:center;gap:8px}
 .tab::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--dot)}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--dot)}
@@ -84,7 +85,7 @@ h1{font-weight:900;font-size:clamp(24px,3vw,32px);margin:0 0 18px;text-wrap:bala
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px}
 .stage{padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .stage-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-.kicker{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.kicker{font-size:13px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
 .kicker i{width:9px;height:9px;border-radius:50%;background:var(--dot,var(--c-diffuse))}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--bg)}
 .seg button{border:0;background:none;border-radius:999px;padding:4px 12px;cursor:pointer;font-size:12px;color:var(--muted)}
@@ -103,7 +104,7 @@ h1{font-weight:900;font-size:clamp(24px,3vw,32px);margin:0 0 18px;text-wrap:bala
 .params{padding:18px 20px;display:flex;flex-direction:column;gap:0;min-width:0}
 .params section{padding-block:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .params section:first-child{border-top:0;padding-top:0}
-.params h3{margin:0;font-size:15px;font-weight:700;color:var(--hc,var(--ink))}
+.params h2{margin:0;font-size:15px;font-weight:700;color:var(--hc,var(--ink))}
 .row{display:grid;grid-template-columns:96px minmax(0,1fr) 44px;gap:10px;align-items:center}
 .row label{font-size:13px}
 .row output{font:12px var(--f-mono);text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -120,7 +121,13 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 .chip[aria-pressed="true"]{border-color:var(--c-rough);background:var(--c-rough);color:var(--bg)}
 .chip[aria-pressed="true"] small{color:inherit;opacity:.8}
 .chip:disabled{opacity:.45;cursor:not-allowed}
-.panel-foot{display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--line)}
+.panel-foot{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;padding-top:14px;border-top:1px solid var(--line)}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:26px}
+.sec-reset{border:0;background:none;padding:3px 8px;border-radius:6px;font-size:12px;color:var(--muted);cursor:pointer}
+.sec-reset:hover{color:var(--ink);background:var(--sunk)}
+::selection{background:var(--accent);color:var(--accent-ink)}
+html{scrollbar-color:var(--line) transparent;caret-color:var(--accent)}
+@media (min-width:1181px){.stage{position:sticky;top:20px}}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px);z-index:20}
 .toast.show{opacity:1}
 @media (max-width:1180px){.bench{grid-template-columns:minmax(0,1fr)}}
@@ -196,50 +203,39 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
       <div class="card params">
         <div data-panel="diffuse">
           <section style="--hc:var(--c-diffuse)">
-            <h3>亮度 / 對比 / 飽和度</h3>
+            <h2>光影修正</h2>
+            <div class="row"><label for="p-even">明暗均勻</label><input type="range" id="p-even" data-k="even" min="0" max="100" step="1"><output for="p-even"></output></div>
+            <div class="row"><label for="p-shadow">光影不均</label><input type="range" id="p-shadow" data-k="shadow" min="0" max="100" step="1"><output for="p-shadow"></output></div>
+            <div class="row"><label for="p-soften">柔化範圍</label><input type="range" id="p-soften" data-k="soften" min="5" max="100" step="1"><output for="p-soften"></output></div>
+            <p class="hint">「明暗均勻」修四角偏暗、中間偏亮，通常拉到 100。「光影不均」修一邊亮一邊暗；柔化範圍越大，越只修大面積的漸層。兩個都不會動到石紋和磚縫。</p>
+          </section>
+          <section style="--hc:var(--c-diffuse)">
+            <h2>顏色</h2>
+            <div class="row"><label for="p-wb">自動白平衡</label><input type="range" id="p-wb" data-k="wb" min="0" max="100" step="1"><output for="p-wb"></output></div>
             <div class="row"><label for="p-bright">亮度</label><input type="range" id="p-bright" data-k="bright" min="-100" max="100" step="1"><output for="p-bright"></output></div>
             <div class="row"><label for="p-contrast">對比</label><input type="range" id="p-contrast" data-k="contrast" min="-100" max="100" step="1"><output for="p-contrast"></output></div>
             <div class="row"><label for="p-sat">飽和度</label><input type="range" id="p-sat" data-k="sat" min="-100" max="100" step="1"><output for="p-sat"></output></div>
-            <p class="hint">整張照片調亮調暗、加強明暗反差、讓顏色更鮮豔或更灰。只改照片外觀，不會影響法線的凹凸。</p>
+            <p class="hint">白平衡修掉燈光的偏黃、偏藍，木紋、紅磚這類本身有顏色的材質請保持低數值。亮度、對比、飽和度只改照片外觀，不影響法線的凹凸。</p>
           </section>
           <section style="--hc:var(--c-diffuse)">
-            <h3>明暗均勻（修暗角）</h3>
-            <div class="row"><label for="p-even">均勻強度</label><input type="range" id="p-even" data-k="even" min="0" max="100" step="1"><output for="p-even"></output></div>
-            <p class="hint">修掉廠商照片四個角偏暗、中間偏亮，顏色也會跟著變均勻。只抓整張照片的明暗分布，不會動到石紋和磚縫，通常直接拉到 100。</p>
-          </section>
-          <section style="--hc:var(--c-diffuse)">
-            <h3>光影不均修正</h3>
-            <div class="row"><label for="p-shadow">修正強度</label><input type="range" id="p-shadow" data-k="shadow" min="0" max="100" step="1"><output for="p-shadow"></output></div>
-            <div class="row"><label for="p-soften">柔化範圍</label><input type="range" id="p-soften" data-k="soften" min="5" max="100" step="1"><output for="p-soften"></output></div>
-            <p class="hint">拍照常會一邊亮一邊暗。「修正強度」把整體光影拉平；「柔化範圍」越大，只修大面積的明暗漸層，材質本身的紋理不受影響。照片本來打光就均勻的話，拉高也不會有明顯變化。</p>
-          </section>
-          <section style="--hc:var(--c-diffuse)">
-            <h3>色偏修正</h3>
-            <div class="row"><label for="p-wb">自動白平衡</label><input type="range" id="p-wb" data-k="wb" min="0" max="100" step="1"><output for="p-wb"></output></div>
-            <p class="hint">修掉燈光造成的偏黃、偏藍。木紋、紅磚這類本身有顏色的材質請保持低數值。</p>
-          </section>
-          <section style="--hc:var(--c-diffuse)">
-            <h3>套色</h3>
+            <h2>套色</h2>
             <div class="row"><label for="p-tintColor">目標顏色</label><input type="color" id="p-tintColor" data-k="tintColor"></div>
             <div class="row"><label for="p-tint">套色強度</label><input type="range" id="p-tint" data-k="tint" min="0" max="100" step="1"><output for="p-tint"></output></div>
-            <p class="hint">把材質的色相往目標色調整，明暗紋理保持不變。強度 0 表示不套用。</p>
+            <div class="row chk"><label for="p-tintKeep">保留原本明暗（只換顏色）</label><input type="checkbox" id="p-tintKeep" data-k="tintKeep"></div>
+            <p class="hint">強度 100 會整張換成目標色，連深淺也對到色塊，石紋、磚縫的深淺變化保留。只想換色調、不想變亮或變暗，就勾「保留原本明暗」。</p>
           </section>
           <section style="--hc:var(--c-diffuse)">
-            <h3>無縫接邊</h3>
-            <div class="row"><label for="p-seam">接邊寬度</label><input type="range" id="p-seam" data-k="seam" min="0" max="25" step="1"><output for="p-seam"></output></div>
-            <p class="hint">3×3 平鋪時看得到接縫就調高，邊緣會跟對側融合，鋪滿整面牆也不會出現格線。</p>
-          </section>
-          <section style="--hc:var(--c-diffuse)">
-            <h3>放大（提高像素）</h3>
+            <h2>平鋪與尺寸</h2>
+            <div class="row"><label for="p-seam">無縫接邊</label><input type="range" id="p-seam" data-k="seam" min="0" max="25" step="1"><output for="p-seam"></output></div>
             <div class="row"><label for="p-upscale">放大倍數</label>
               <select id="p-upscale" data-k="upscale"><option value="1">1×（原尺寸）</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></div>
-            <p class="hint">放大後會加一點銳利化。輸出最長邊上限 4096 px。</p>
+            <p class="hint">3×3 平鋪看得到接縫就調高「無縫接邊」，邊緣會跟對側融合。放大會加一點銳利化，輸出最長邊上限 4096 px。</p>
           </section>
         </div>
 
         <div data-panel="normal" hidden>
           <section style="--hc:var(--c-normal)">
-            <h3>法線貼圖參數</h3>
+            <h2>法線貼圖參數</h2>
             <div class="row"><label for="p-nStrength">強度</label><input type="range" id="p-nStrength" data-k="nStrength" min="0" max="10" step="0.1"><output for="p-nStrength"></output></div>
             <div class="row"><label for="p-nBlur">前處理模糊</label><input type="range" id="p-nBlur" data-k="nBlur" min="0" max="10" step="1"><output for="p-nBlur"></output></div>
             <div class="row chk"><label for="p-nFlipY">翻轉 Y（DirectX 格式／凹凸相反時勾選）</label><input type="checkbox" id="p-nFlipY" data-k="nFlipY"></div>
@@ -249,12 +245,12 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 
         <div data-panel="rough" hidden>
           <section style="--hc:var(--c-rough)">
-            <h3>磚面光澤預設</h3>
+            <h2>磚面光澤預設</h2>
             <div class="presets" id="rPresets" role="group" aria-label="磚面光澤預設"></div>
             <p class="hint">選磚面種類一鍵套用，深色、淺色磚都適用，不用再勾反轉。套用後仍可用下面的滑桿微調。</p>
           </section>
           <section style="--hc:var(--c-rough)">
-            <h3>粗糙度貼圖參數</h3>
+            <h2>粗糙度貼圖參數</h2>
             <div class="row"><label for="p-rBase">整體粗糙度</label><input type="range" id="p-rBase" data-k="rBase" min="0" max="100" step="1"><output for="p-rBase"></output></div>
             <div class="row"><label for="p-rContrast">紋理對比</label><input type="range" id="p-rContrast" data-k="rContrast" min="0" max="3" step="0.05"><output for="p-rContrast"></output></div>
             <div class="row"><label for="p-rDetail">細節強度</label><input type="range" id="p-rDetail" data-k="rDetail" min="0" max="2" step="0.05"><output for="p-rDetail"></output></div>
@@ -265,6 +261,7 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 
         <div class="panel-foot">
           <button class="btn" id="resetTab" type="button">重設這一頁參數</button>
+          <span class="hint">雙擊滑桿可以單獨歸零</span>
         </div>
       </div>
     </div>
@@ -276,9 +273,9 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const PREVIEW_MAX = 1600, EXPORT_MAX = 4096;
-const DEF = {bright:0, contrast:0, sat:0, even:0, shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, seam:0, upscale:1,
+const DEF = {bright:0, contrast:0, sat:0, even:0, shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, tintKeep:false, seam:0, upscale:1,
              nStrength:2.5, nBlur:0, nFlipY:false, rBase:50, rContrast:1, rDetail:0.6, rInvert:false};
-const TAB_KEYS = {diffuse:['bright','contrast','sat','even','shadow','soften','wb','tintColor','tint','seam','upscale'],
+const TAB_KEYS = {diffuse:['bright','contrast','sat','even','shadow','soften','wb','tintColor','tint','tintKeep','seam','upscale'],
                   normal:['nStrength','nBlur','nFlipY'], rough:['rBase','rContrast','rDetail','rInvert']};
 /* 磚面光澤預設：base＝整體粗糙度(0 鏡面～100 全霧)，contrast＝紋理帶出的粗糙度變化，
    detail＝細紋保留程度，invert＝深色部分較粗糙(木紋的深色紋路通常是凹下較霧的地方) */
@@ -428,12 +425,15 @@ function computeDiffuse(f,sz){
     const low=lowFreq(L,W,H,p.soften), k=p.shadow/100;
     for(let i=0;i<N;i++){let gn=Math.pow(mean/Math.max(low[i],.02),k);gn=gn<.25?.25:gn>4?4:gn;R[i]*=gn;G[i]*=gn;B[i]*=gn}
   }
-  if(p.tint>0){ // hue/saturation toward target, lightness kept
+  if(p.tint>0){ // 套色：每個像素換成目標色的色調；不保留明暗時，平均亮度也對到目標色，紋理深淺比例不變
     const t=parseInt(p.tintColor.slice(1),16), tr=(t>>16&255)/255, tg=(t>>8&255)/255, tb=(t&255)/255;
-    const Lt=Math.min(.98,Math.max(.02,.299*tr+.587*tg+.114*tb)), a=p.tint/100;
+    const Lt=Math.min(.98,Math.max(.02,.299*tr+.587*tg+.114*tb)), a=p.tint/100, or=tr-Lt, og=tg-Lt, ob=tb-Lt;
+    let Lm=0; for(let i=0;i<N;i++) Lm+=.299*R[i]+.587*G[i]+.114*B[i]; Lm=Math.min(.98,Math.max(.02,Lm/N));
+    const ex=p.tintKeep?1:Math.log(Lt)/Math.log(Lm); // 冪次曲線把平均亮度移到目標亮度，純黑純白不動，不會爆白
+    const room=(o,L)=>o>0?(1-L)/o:o<0?L/-o:Infinity; // 這個亮度下色差還能放多大才不超出色域
     for(let i=0;i<N;i++){
-      const L=clamp01(.299*R[i]+.587*G[i]+.114*B[i]), k=Math.min(1,L/Lt,(1-L)/(1-Lt));
-      R[i]+=(L+(tr-Lt)*k-R[i])*a; G[i]+=(L+(tg-Lt)*k-G[i])*a; B[i]+=(L+(tb-Lt)*k-B[i])*a;
+      const L=Math.pow(clamp01(.299*R[i]+.587*G[i]+.114*B[i]),ex), k=Math.min(1,room(or,L),room(og,L),room(ob,L));
+      R[i]+=(L+or*k-R[i])*a; G[i]+=(L+og*k-G[i])*a; B[i]+=(L+ob*k-B[i])*a;
     }
   }
   if(p.seam>0){ // cross-fade edges with a half-offset copy so the tile wraps
@@ -521,7 +521,7 @@ function draw(){
   if(!src) return;
   const box=$('#viewBox'), reps=tiled?3:1, dpr=Math.min(2,window.devicePixelRatio||1);
   const aspect=pv.sz.H/pv.sz.W;
-  let dw=box.clientWidth, dh=dw*aspect; const maxH=Math.max(260,window.innerHeight*.66); if(dh>maxH){dh=maxH;dw=dh/aspect}
+  let dw=box.clientWidth, dh=dw*aspect; const maxH=Math.max(240,Math.min(window.innerHeight*.75,window.innerHeight-190)); // 寬螢幕預覽會固定在畫面上，要整個看得到 if(dh>maxH){dh=maxH;dw=dh/aspect}
   cv.style.width=dw+'px'; cv.style.height=dh+'px'; cv.width=Math.round(dw*dpr); cv.height=Math.round(dh*dpr);
   const g=cv.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high';
   for(let j=0;j<reps;j++)for(let i=0;i<reps;i++){
@@ -609,7 +609,7 @@ function loadUI(){
     const out=el.parentElement.querySelector('output'); if(out) out.textContent=fmt(k,v);
     el.disabled=!f;
   });
-  markPreset();
+  markPreset(); markChanged();
 }
 $$('[data-k]').forEach(el=>{
   el.addEventListener('input',()=>{
@@ -617,10 +617,30 @@ $$('[data-k]').forEach(el=>{
     const k=el.dataset.k;
     const v= el.type==='checkbox'?el.checked : el.type==='color'?el.value : parseFloat(el.value);
     f.params[k]=v; const out=el.parentElement.querySelector('output'); if(out) out.textContent=fmt(k,v);
-    markPreset(); schedule();
+    markPreset(); markChanged(); schedule();
   });
   if(el.type==='checkbox'||el.tagName==='SELECT') el.addEventListener('change',()=>el.dispatchEvent(new Event('input')));
+  if(el.type==='range') el.addEventListener('dblclick',()=>{ // 雙擊滑桿歸零
+    if(el.disabled) return; el.value=String(DEF[el.dataset.k]); el.dispatchEvent(new Event('input'));
+  });
 });
+/* 每個參數區塊標題旁放「重設」，只有改過數值時才出現 */
+$$('.params section').forEach(sec=>{
+  const ks=[...sec.querySelectorAll('[data-k]')].map(el=>el.dataset.k); if(!ks.length) return;
+  const h=sec.querySelector('h2'), head=document.createElement('div'), b=document.createElement('button');
+  head.className='sec-head'; b.type='button'; b.className='sec-reset'; b.textContent='重設'; b.hidden=true;
+  b.setAttribute('aria-label','重設「'+h.textContent+'」');
+  h.replaceWith(head); head.append(h,b);
+  b.addEventListener('click',()=>{
+    const f=files[active]; if(!f) return;
+    ks.forEach(k=>f.params[k]=DEF[k]); loadUI(); schedule(); h.tabIndex=-1; h.focus();
+  });
+  sec.resetKeys=ks; sec.resetBtn=b;
+});
+function markChanged(){
+  const f=files[active];
+  $$('.params section').forEach(sec=>{ if(sec.resetBtn) sec.resetBtn.hidden=!f||sec.resetKeys.every(k=>f.params[k]===DEF[k]) });
+}
 function setTab(t){
   tab=t; showOrig=false;
   $$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.t===t)));
@@ -688,7 +708,7 @@ function renderList(){
     const nm=document.createElement('div'); nm.className='nm'; nm.textContent=f.name; nm.title=f.name;
     const dm=document.createElement('div'); dm.className='dm'; dm.textContent=`${f.w} × ${f.h}`;
     info.append(nm,dm);
-    const x=document.createElement('button'); x.type='button'; x.className='x'; x.textContent='×'; x.setAttribute('aria-label','移除 '+f.name);
+    const x=document.createElement('button'); x.type='button'; x.className='x'; x.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'; x.setAttribute('aria-label','移除 '+f.name);
     x.addEventListener('click',e=>{e.stopPropagation();removeFile(i)});
     row.append(im,info,x);
     const pick=()=>{active=i;renderList();loadUI();schedule()};
