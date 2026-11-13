@@ -272,7 +272,7 @@ html{scrollbar-color:var(--line) transparent;caret-color:var(--accent)}
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const PREVIEW_MAX = 1600, EXPORT_MAX = 4096;
+const PREVIEW_MAX = 2048, EXPORT_MAX = 4096; // 一般廠商照片預覽就用原解析度運算，不先縮小
 const DEF = {bright:0, contrast:0, sat:0, even:0, shadow:0, soften:50, wb:0, tintColor:'#c8a27c', tint:0, tintKeep:false, seam:0, upscale:1,
              nStrength:2.5, nBlur:0, nFlipY:false, rBase:50, rContrast:1, rDetail:0.6, rInvert:false};
 const TAB_KEYS = {diffuse:['bright','contrast','sat','even','shadow','soften','wb','tintColor','tint','tintKeep','seam','upscale'],
@@ -323,23 +323,39 @@ function boxBlur(a,w,h,r,wrap,passes=2){
   return x;
 }
 
-/* Low-frequency lighting estimate: average onto a coarse grid, blur it, sample back bilinearly. */
-function lowFreq(L,W,H,soften){
-  const k=96/Math.max(W,H), gw=Math.max(2,Math.round(W*k)), gh=Math.max(2,Math.round(H*k));
-  const sum=new Float32Array(gw*gh), cnt=new Float32Array(gw*gh);
-  for(let y=0;y<H;y++){const gy=Math.min(gh-1,(y*gh/H)|0);for(let x=0;x<W;x++){const g=gy*gw+Math.min(gw-1,(x*gw/W)|0);sum[g]+=L[y*W+x];cnt[g]++}}
-  for(let i=0;i<sum.length;i++) sum[i]/=cnt[i]||1;
-  const g=boxBlur(sum,gw,gh,Math.max(1,soften/100*Math.max(gw,gh)*0.3),false,3);
-  const out=new Float32Array(W*H);
+/* 0～1 的冪次曲線查表，取代每個像素的 Math.pow */
+const LUT_N=4096;
+function powLUT(e){const t=new Float32Array(LUT_N+1);for(let i=0;i<=LUT_N;i++)t[i]=Math.pow(i/LUT_N,e);return t}
+
+/* 粗網格工具：打光修正都先在小網格上算好倍率，再雙線性展開到每個像素，避免每個像素都做 pow / exp */
+function cellIdx(n,g){const a=new Int32Array(n);for(let i=0;i<n;i++)a[i]=Math.min(g-1,(i*g/n)|0);return a}
+function axisTab(n,g,edge){ // edge=true：樣本在兩端點(k/(g-1))；false：樣本在格子中心((k+.5)/g)
+  const i0=new Int32Array(n), t=new Float32Array(n);
+  for(let x=0;x<n;x++){
+    let f=edge?(x+.5)/n*(g-1):(x+.5)*g/n-.5; f=f<0?0:f>g-1?g-1:f;
+    const k=Math.max(0,Math.min(g-2,f|0)); i0[x]=k; t[x]=g>1?f-k:0;
+  }
+  return {i0,t};
+}
+function upsample(S,sw,sh,W,H,edge){
+  const X=axisTab(W,sw,edge), Y=axisTab(H,sh,edge), out=new Float32Array(W*H), x1=sw>1?1:0, y1=sh>1?sw:0;
   for(let y=0;y<H;y++){
-    let fy=(y+.5)*gh/H-.5; fy=fy<0?0:fy>gh-1?gh-1:fy; const y0=fy|0,y1=Math.min(gh-1,y0+1),ty=fy-y0;
+    const r=Y.i0[y]*sw, ty=Y.t[y], o=y*W;
     for(let x=0;x<W;x++){
-      let fx=(x+.5)*gw/W-.5; fx=fx<0?0:fx>gw-1?gw-1:fx; const x0=fx|0,x1=Math.min(gw-1,x0+1),tx=fx-x0;
-      const a=g[y0*gw+x0]+(g[y0*gw+x1]-g[y0*gw+x0])*tx, b=g[y1*gw+x0]+(g[y1*gw+x1]-g[y1*gw+x0])*tx;
-      out[y*W+x]=a+(b-a)*ty;
+      const i=r+X.i0[x], tx=X.t[x], a=S[i]+(S[i+x1]-S[i])*tx, b=S[i+y1]+(S[i+y1+x1]-S[i+y1])*tx;
+      out[o+x]=a+(b-a)*ty;
     }
   }
   return out;
+}
+
+/* Low-frequency lighting estimate: average onto a coarse grid and blur it (grid returned, not upsampled). */
+function lowFreq(L,W,H,soften){
+  const k=96/Math.max(W,H), gw=Math.max(2,Math.round(W*k)), gh=Math.max(2,Math.round(H*k));
+  const sum=new Float32Array(gw*gh), cnt=new Float32Array(gw*gh), cx=cellIdx(W,gw), cy=cellIdx(H,gh);
+  for(let y=0;y<H;y++){const r=cy[y]*gw;for(let x=0;x<W;x++){const g=r+cx[x];sum[g]+=L[y*W+x];cnt[g]++}}
+  for(let i=0;i<sum.length;i++) sum[i]/=cnt[i]||1;
+  return {g:boxBlur(sum,gw,gh,Math.max(1,soften/100*Math.max(gw,gh)*0.3),false,3),gw,gh};
 }
 
 /* 明暗均勻：對每個色版的 log 值擬合一個平滑曲面(四次多項式＋徑向項)當成打光分布，再除掉它。
@@ -376,23 +392,17 @@ function evenLight(ch,W,H,k){
   };
   const A=[]; for(let y=0;y<gh;y++)for(let x=0;x<gw;x++)A.push(basis((x+.5)/gw,(y+.5)/gh));
   const nodes=[]; for(let y=0;y<=gh;y++)for(let x=0;x<=gw;x++)nodes.push(basis(x/gw,y/gh));
-  for(const C of ch){
-    const sum=new Float64Array(GN), cnt=new Uint32Array(GN);
-    for(let y=0;y<H;y++){const gy=Math.min(gh-1,(y*gh/H)|0);for(let x=0;x<W;x++){const g=gy*gw+Math.min(gw-1,(x*gw/W)|0);sum[g]+=C[y*W+x];cnt[g]++}}
+  const cx=cellIdx(W,gw), cy=cellIdx(H,gh), cnt=new Uint32Array(GN), sums=ch.map(()=>new Float64Array(GN));
+  for(let y=0;y<H;y++){const r=cy[y]*gw;for(let x=0;x<W;x++){const g=r+cx[x], i=y*W+x;cnt[g]++;for(let c=0;c<ch.length;c++)sums[c][g]+=ch[c][i]}}
+  ch.forEach((C,ci)=>{
     const v=new Float64Array(GN), on=new Uint8Array(GN);
-    for(let i=0;i<GN;i++) if(cnt[i]){v[i]=Math.log(Math.max(sum[i]/cnt[i],.01));on[i]=1}
+    for(let i=0;i<GN;i++) if(cnt[i]){v[i]=Math.log(Math.max(sums[ci][i]/cnt[i],.01));on[i]=1}
     const c=fitLight(v,on,A);
-    const S=nodes.map(a=>a.reduce((s,t,r)=>s+t*c[r],0));
     let mean=0,n=0; for(let i=0;i<GN;i++){ if(!on[i]) continue; let s=0; for(let r=0;r<c.length;r++) s+=c[r]*A[i][r]; mean+=s; n++; } mean/=n||1;
-    for(let y=0;y<H;y++){
-      const fy=(y+.5)*gh/H, y0=Math.min(gh-1,fy|0), ty=fy-y0;
-      for(let x=0;x<W;x++){
-        const fx=(x+.5)*gw/W, x0=Math.min(gw-1,fx|0), tx=fx-x0, i=y0*(gw+1)+x0, j=i+gw+1;
-        const a=S[i]+(S[i+1]-S[i])*tx, b=S[j]+(S[j+1]-S[j])*tx;
-        let gn=Math.exp((mean-(a+(b-a)*ty))*k); gn=gn<.25?.25:gn>4?4:gn; C[y*W+x]*=gn;
-      }
-    }
-  }
+    const gain=Float32Array.from(nodes,a=>{let gn=Math.exp((mean-a.reduce((s,t,r)=>s+t*c[r],0))*k);return gn<.25?.25:gn>4?4:gn});
+    const G=upsample(gain,gw+1,gh+1,W,H,true);
+    for(let i=0;i<C.length;i++) C[i]*=G[i];
+  });
 }
 
 /* ---------- sizing ---------- */
@@ -423,7 +433,9 @@ function computeDiffuse(f,sz){
     const L=new Float32Array(N); let mean=0;
     for(let i=0;i<N;i++){L[i]=.299*R[i]+.587*G[i]+.114*B[i];mean+=L[i]} mean/=N;
     const low=lowFreq(L,W,H,p.soften), k=p.shadow/100;
-    for(let i=0;i<N;i++){let gn=Math.pow(mean/Math.max(low[i],.02),k);gn=gn<.25?.25:gn>4?4:gn;R[i]*=gn;G[i]*=gn;B[i]*=gn}
+    const gain=low.g.map(v=>{const gn=Math.pow(mean/Math.max(v,.02),k);return gn<.25?.25:gn>4?4:gn});
+    const Gn=upsample(gain,low.gw,low.gh,W,H,false);
+    for(let i=0;i<N;i++){R[i]*=Gn[i];G[i]*=Gn[i];B[i]*=Gn[i]}
   }
   if(p.tint>0){ // 套色：每個像素換成目標色的色調；不保留明暗時，平均亮度也對到目標色，紋理深淺比例不變
     const t=parseInt(p.tintColor.slice(1),16), tr=(t>>16&255)/255, tg=(t>>8&255)/255, tb=(t&255)/255;
@@ -431,8 +443,9 @@ function computeDiffuse(f,sz){
     let Lm=0; for(let i=0;i<N;i++) Lm+=.299*R[i]+.587*G[i]+.114*B[i]; Lm=Math.min(.98,Math.max(.02,Lm/N));
     const ex=p.tintKeep?1:Math.log(Lt)/Math.log(Lm); // 冪次曲線把平均亮度移到目標亮度，純黑純白不動，不會爆白
     const room=(o,L)=>o>0?(1-L)/o:o<0?L/-o:Infinity; // 這個亮度下色差還能放多大才不超出色域
+    const curve=powLUT(ex);
     for(let i=0;i<N;i++){
-      const L=Math.pow(clamp01(.299*R[i]+.587*G[i]+.114*B[i]),ex), k=Math.min(1,room(or,L),room(og,L),room(ob,L));
+      const L=curve[(clamp01(.299*R[i]+.587*G[i]+.114*B[i])*LUT_N+.5)|0], k=Math.min(1,room(or,L),room(og,L),room(ob,L));
       R[i]+=(L+or*k-R[i])*a; G[i]+=(L+og*k-G[i])*a; B[i]+=(L+ob*k-B[i])*a;
     }
   }
@@ -458,8 +471,9 @@ function computeDiffuse(f,sz){
   if(p.bright||p.contrast||p.sat){
     const gam=Math.pow(2,-p.bright/50), c=Math.pow(2,p.contrast/50), st=1+p.sat/100; // ±100 → 亮度 γ 0.25～4、對比 0.25～4 倍、飽和 0～2 倍
     let m=0; for(let i=0;i<N;i++) m+=lum[i]; const piv=Math.pow(m/N,gam); // 對比以照片自己的平均亮度為中心，深色石材才不會整片變黑
+    const curve=powLUT(gam), q=v=>curve[(clamp01(v)*LUT_N+.5)|0];
     for(let i=0;i<N;i++){
-      let r=Math.pow(clamp01(R[i]),gam), g=Math.pow(clamp01(G[i]),gam), b=Math.pow(clamp01(B[i]),gam);
+      let r=q(R[i]), g=q(G[i]), b=q(B[i]);
       r=(r-piv)*c+piv; g=(g-piv)*c+piv; b=(b-piv)*c+piv;
       const L=.299*r+.587*g+.114*b; R[i]=L+(r-L)*st; G[i]=L+(g-L)*st; B[i]=L+(b-L)*st;
     }
@@ -521,7 +535,9 @@ function draw(){
   if(!src) return;
   const box=$('#viewBox'), reps=tiled?3:1, dpr=Math.min(2,window.devicePixelRatio||1);
   const aspect=pv.sz.H/pv.sz.W;
-  let dw=box.clientWidth, dh=dw*aspect; const maxH=Math.max(240,Math.min(window.innerHeight*.75,window.innerHeight-190)); // 寬螢幕預覽會固定在畫面上，要整個看得到 if(dh>maxH){dh=maxH;dw=dh/aspect}
+  // 寬螢幕預覽會固定在畫面上，要整個看得到；也不放大超過運算解析度，避免把紋理拉糊
+  const maxH=Math.max(240,Math.min(window.innerHeight*.75,window.innerHeight-190));
+  let dw=Math.min(box.clientWidth,pv.sz.W*reps/dpr), dh=dw*aspect; if(dh>maxH){dh=maxH;dw=dh/aspect}
   cv.style.width=dw+'px'; cv.style.height=dh+'px'; cv.width=Math.round(dw*dpr); cv.height=Math.round(dh*dpr);
   const g=cv.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high';
   for(let j=0;j<reps;j++)for(let i=0;i<reps;i++){
